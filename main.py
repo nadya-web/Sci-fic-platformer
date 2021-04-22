@@ -25,7 +25,8 @@ player_properties = {
     'jump_count': 10,
     'left': False,
     'right': False,
-    'steps': 0
+    'steps': 0,
+    'side': ''
 }
 
 def reDraw():
@@ -34,21 +35,27 @@ def reDraw():
     bg = pygame.transform.scale(bg, (1000, 1000))
     window.blit(bg, (0,0))
 
-    if player_properties['steps'] + 1 >= 30:
+    if player_properties['steps'] >= 33:
         player_properties['steps'] = 0
     else:
         if player_properties['right']:
-            window.blit(walk_right[player_properties['steps']//3], (player_properties['x'], player_properties['y']))
+            window.blit(walk_right[player_properties['steps'] // 3 - 1], (player_properties['x'], player_properties['y']))
             player_properties['steps'] += 1
         elif player_properties['left'] :
-            window.blit(walk_left[player_properties['steps'] // 3], (player_properties['x'], player_properties['y']))
+            window.blit(walk_left[player_properties['steps'] // 3 - 1], (player_properties['x'], player_properties['y']))
             player_properties['steps'] += 1
+        else:
+            if player_properties['side'] == 'left':
+                window.blit(walk_left[0], (player_properties['x'], player_properties['y']))
+            elif player_properties['side'] == 'right':
+                window.blit(walk_right[0], (player_properties['x'], player_properties['y']))
+
 
     pygame.display.update()
 
 clock = pygame.time.Clock()
 while running:
-    clock.tick(30)
+    clock.tick(33)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -59,13 +66,31 @@ while running:
         player_properties['x'] += player_properties['velocity']
         player_properties['right'] = True
         player_properties['left'] = False
-    if keys[pygame.K_a]:
+        player_properties['side'] = 'right'
+    elif keys[pygame.K_a]:
         player_properties['x'] -= player_properties['velocity']
         player_properties['left'] = True
         player_properties['right'] = False
+        player_properties['side'] = 'left'
     else:
         player_properties['right'] = False
         player_properties['left'] = False
         player_properties['steps'] = 0
+    if keys[pygame.K_SPACE]:
+        player_properties['is_jump'] = True
+        player_properties['right'] = False
+        player_properties['left'] = False
+        player_properties['steps'] = 0
+    if player_properties['is_jump']:
+        if player_properties['jump_count'] >= -10:
+            num = 1
+            if player_properties['jump_count'] < 0:
+                num = -1
+            player_properties['y'] -= (player_properties['jump_count'] ** 2) * 0.5 * num
+            player_properties['jump_count'] -= 1
+        else:
+            player_properties['is_jump'] = False
+            player_properties['jump_count'] = 10
+
     reDraw()
 pygame.quit()
