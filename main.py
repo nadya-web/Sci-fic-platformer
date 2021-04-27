@@ -1,5 +1,6 @@
 import pygame
 from os import path
+import random
 
 
 pygame.init()
@@ -64,6 +65,22 @@ class Bullet(object):
     def draw(self, window):
         pygame.draw.circle(window, self.color, (self.x, self.y), self.rad)
 
+class Particle(object):
+    def __init__(self, x1, y1, side):
+        self.x1 = x1
+        self.y1 = y1
+        self.x2 = x1
+        self.y2 = y1
+        self.color = ((226, 223, 223))
+        self.rad = random.randint(1,3)
+        self.velocityX = random.randint(0,17)
+        self.velocityY = random.randint(2,17)
+        self.sideX = side
+        self.sideY = random.choice([1,-1])
+        self.life = random.randint(20, 30)
+    def draw(self, window):
+        pygame.draw.circle(window, self.color, (self.x2, self.y2), self.rad)
+
 def reDraw():
     bg = pygame.image.load(path.join(bg_dir, 'bg.png'))
     bg = pygame.transform.scale(bg, (1000, 1000))
@@ -71,10 +88,13 @@ def reDraw():
     player.draw(window)
     for bullet in bullets:
         bullet.draw(window)
+    for particle in particles:
+        particle.draw(window)
     pygame.display.update()
 
 clock = pygame.time.Clock()
 bullets = list()
+particles = list()
 player = Player(100, 700)
 while running:
     clock.tick(30)
@@ -86,12 +106,21 @@ while running:
             bullet.x += bullet.velocity
         else:
             bullets.pop(bullets.index(bullet))
+    for particle in particles:
+        if ((particle.x2 - particle.x1)**2 + (particle.y2 - particle.y1)**2)**0.5 > particle.life:
+            particles.pop(particles.index(particle))
+        else:
+            particle.x2 += particle.velocityX * particle.sideX
+            particle.y2 += particle.velocityY * particle.sideY
+
 
     keys = pygame.key.get_pressed()
 
     if keys[pygame.K_f]:
         if len(bullets) < 10:
             bullets.append(Bullet(player.x + player.width//2 + 45*player.side, player.y + 126, player.side))
+            for i in range(random.randint(5,13)):
+                particles.append(Particle(player.x + player.width//2 + 45*player.side, player.y + 126, player.side))
 
     if keys[pygame.K_d]:
         player.x += player.velocity
