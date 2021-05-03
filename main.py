@@ -7,14 +7,15 @@ pygame.init()
 window = pygame.display.set_mode((1000, 1000))
 running = True
 
-walk_sprites_dir = path.join(path.dirname("N:\python\Sci-fic-game\main.py"), 'walkSprites')
-standing_sprites_dir = path.join(path.dirname("N:\python\Sci-fic-game\main.py"), 'standingSprites')
+pl_walk_sprites_dir = path.join(path.dirname("N:\python\Sci-fic-game\main.py"), 'pl_walk_sprites')
+enemy_walk_sprites_dir = path.join(path.dirname("N:\python\Sci-fic-game\main.py"), 'enemy_walk')
+standing_sprites_dir = path.join(path.dirname("N:\python\Sci-fic-game\main.py"), 'pl_standing_sprites')
 bg_dir = path.join(path.dirname("N:\python\Sci-fic-game\main.py"), 'bg')
 
-walk_right = list(map(lambda i: pygame.image.load(path.join(walk_sprites_dir, f'r{i}.png')), range(1, 12)))
-walk_left = list(map(lambda i: pygame.image.load(path.join(walk_sprites_dir, f'l{i}.png')), range(1, 12)))
-standing_right = list(map(lambda i: pygame.image.load(path.join(standing_sprites_dir, f'r{i}.png')), range(1, 12)))
-standing_left = list(map(lambda i: pygame.image.load(path.join(standing_sprites_dir, f'l{i}.png')), range(1, 12)))
+pl_walk_right = list(map(lambda i: pygame.image.load(path.join(pl_walk_sprites_dir, f'r{i}.png')), range(1, 12)))
+pl_walk_left = list(map(lambda i: pygame.image.load(path.join(pl_walk_sprites_dir, f'l{i}.png')), range(1, 12)))
+pl_standing_right = list(map(lambda i: pygame.image.load(path.join(standing_sprites_dir, f'r{i}.png')), range(1, 12)))
+pl_standing_left = list(map(lambda i: pygame.image.load(path.join(standing_sprites_dir, f'l{i}.png')), range(1, 12)))
 
 class Player(object):
     def __init__(self, x, y):
@@ -35,20 +36,20 @@ class Player(object):
         if self.steps + 1 >= 30:
             self.steps = 0
         if self.right:
-            player = walk_right[self.steps // 3]
+            player = pl_walk_right[self.steps // 3]
             self.steps += 1
             self.standing = self.steps
         elif self.left:
-            player = walk_left[self.steps // 3]
+            player = pl_walk_left[self.steps // 3]
             self.steps += 1
             self.standing = self.steps
         else:
             if self.standing + 1 >= 30:
                 self.standing = 0
             if self.side < 0:
-                player = standing_left[self.standing // 3]
+                player = pl_standing_left[self.standing // 3]
             elif self.side > 0:
-                player = standing_right[self.standing // 3]
+                player = pl_standing_right[self.standing // 3]
             self.standing += 1
         player.set_colorkey((255, 255, 255))
         window.blit(player, (self.x, self.y))
@@ -65,6 +66,49 @@ class Bullet(object):
     def draw(self, window):
         pygame.draw.circle(window, self.color, (self.x, self.y), self.rad)
 
+class Enemy(object):
+    def __init__(self, x, y, end):
+        self.x = x
+        self.y = y
+        self.width = 256
+        self.hight = 256
+        self.end = end
+        self.path = [self.x, self.end]
+        self.steps = 0
+        self.velocity = 2
+        self.walk_right = list(map(lambda i: pygame.image.load(path.join(enemy_walk_sprites_dir, f'r{i}.png')), range(1,9)))
+        self.walk_left = list(map(lambda i : pygame.image.load(path.join(enemy_walk_sprites_dir, f'l{i}.png')), range(1, 9)))
+
+    def draw(self, window):
+
+        self.move()
+        if self.steps + 1 >= 24:
+            self.steps = 0
+
+        if self.velocity > 0:
+            enemy = self.walk_right[self.steps // 3]
+            self.steps += 1
+        else:
+            enemy = self.walk_left[self.steps // 3]
+            self.steps += 1
+
+        enemy.set_colorkey((255, 255, 255))
+        window.blit(enemy, (self.x, self.y))
+
+    def move(self):
+        if self.velocity > 0:
+            if self.x + self.velocity < self.path[1]:
+                self.x += self.velocity
+            else:
+                self.velocity *= -1
+                self.steps = 0
+        else:
+            if self.x - self.velocity > self.path[0]:
+                self.x += self.velocity
+            else:
+                self.velocity *= -1
+                self.steps = 0
+
 class Particle(object):
     def __init__(self, x1, y1, side):
         self.x1 = x1
@@ -72,7 +116,7 @@ class Particle(object):
         self.x2 = x1
         self.y2 = y1
         self.color = ((226, 223, 223))
-        self.rad = random.randint(1,3)
+        self.rad = random.randrange(1,3)
         self.velocityX = random.randint(0,17)
         self.velocityY = random.randint(2,17)
         self.sideX = side
@@ -85,6 +129,7 @@ def reDraw():
     bg = pygame.image.load(path.join(bg_dir, 'bg.png'))
     bg = pygame.transform.scale(bg, (1000, 1000))
     window.blit(bg, (0, 0))
+    enemy.draw(window)
     player.draw(window)
     for bullet in bullets:
         bullet.draw(window)
@@ -96,6 +141,7 @@ clock = pygame.time.Clock()
 bullets = list()
 particles = list()
 player = Player(100, 700)
+enemy = Enemy(400, 750, 800)
 while running:
     clock.tick(30)
     for event in pygame.event.get():
