@@ -8,14 +8,28 @@ window = pygame.display.set_mode((1000, 1000))
 running = True
 
 pl_walk_sprites_dir = path.join(path.dirname("N:\python\Sci-fic-game\main.py"), 'pl_walk_sprites')
-enemy_walk_sprites_dir = path.join(path.dirname("N:\python\Sci-fic-game\main.py"), 'enemy_walk')
 standing_sprites_dir = path.join(path.dirname("N:\python\Sci-fic-game\main.py"), 'pl_standing_sprites')
+pl_death_dir = path.join(path.dirname("N:\python\Sci-fic-game\main.py"), 'pl_death')
+enemy_walk_sprites_dir = path.join(path.dirname("N:\python\Sci-fic-game\main.py"), 'enemy_walk')
+enemy_death_dir = path.join(path.dirname("N:\python\Sci-fic-game\main.py"), 'enemy_death')
+pics_dir = path.join(path.dirname("N:\python\Sci-fic-game\main.py"), 'pics')
 bg_dir = path.join(path.dirname("N:\python\Sci-fic-game\main.py"), 'bg')
 
 pl_walk_right = list(map(lambda i: pygame.image.load(path.join(pl_walk_sprites_dir, f'r{i}.png')), range(1, 12)))
 pl_walk_left = list(map(lambda i: pygame.image.load(path.join(pl_walk_sprites_dir, f'l{i}.png')), range(1, 12)))
 pl_standing_right = list(map(lambda i: pygame.image.load(path.join(standing_sprites_dir, f'r{i}.png')), range(1, 12)))
 pl_standing_left = list(map(lambda i: pygame.image.load(path.join(standing_sprites_dir, f'l{i}.png')), range(1, 12)))
+pl_death = list(map(lambda i: pygame.image.load(path.join(pl_death_dir, f'{i}.png')), range(1, 27)))
+enemy_death = list(map(lambda i: pygame.image.load(path.join(enemy_death_dir, f'{i}.png')), range(2, 21)))
+health_bars = list(map(lambda i: pygame.image.load(path.join(pics_dir, f'{i}.png')), range(1,7)))
+avatar = pygame.image.load(path.join(pics_dir, 'avatar.png'))
+btn = pygame.image.load(path.join(pics_dir, 'start_btn.png'))
+logo = pygame.image.load(path.join(pics_dir, 'logo.png'))
+
+btn = pygame.transform.scale(btn, (232, 96))
+logo = pygame.transform.scale(logo, (595, 230))
+btn.set_colorkey((255, 255, 255))
+logo.set_colorkey((255, 255, 255))
 
 class Player(object):
     def __init__(self, x, y):
@@ -31,27 +45,43 @@ class Player(object):
         self.steps = 0
         self.standing = 0
         self.side = 1
+        self.hitbox = (self.x + 105, self.y + 75, 40, 105)
+        self.life = 0
+        self.death = 0
 
     def draw(self, window):
-        if self.steps + 1 >= 30:
-            self.steps = 0
-        if self.right:
-            player = pl_walk_right[self.steps // 3]
-            self.steps += 1
-            self.standing = self.steps
-        elif self.left:
-            player = pl_walk_left[self.steps // 3]
-            self.steps += 1
-            self.standing = self.steps
+        if self.life < 5:
+            if self.steps + 1 >= 30:
+                self.steps = 0
+            if self.right:
+                player = pl_walk_right[self.steps // 3]
+                self.steps += 1
+                self.standing = self.steps
+            elif self.left:
+                player = pl_walk_left[self.steps // 3]
+                self.steps += 1
+                self.standing = self.steps
+            else:
+                if self.standing + 1 >= 30:
+                    self.standing = 0
+                if self.side < 0:
+                    player = pl_standing_left[self.standing // 3]
+                elif self.side > 0:
+                    player = pl_standing_right[self.standing // 3]
+                self.standing += 1
         else:
-            if self.standing + 1 >= 30:
-                self.standing = 0
-            if self.side < 0:
-                player = pl_standing_left[self.standing // 3]
-            elif self.side > 0:
-                player = pl_standing_right[self.standing // 3]
-            self.standing += 1
+            if self.death + 1 < 26:
+                player = pl_death[self.death]
+                player.set_colorkey((255, 255, 255))
+
+        self.hitbox = (self.x + 105, self.y + 75, 40, 105)
+        #pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
+        health_bar = health_bars[self.life]
+        health_bar.set_colorkey((255, 255, 255))
+        avatar.set_colorkey((255, 255, 255))
         player.set_colorkey((255, 255, 255))
+        window.blit(avatar, (10, 10))
+        window.blit(health_bar, (60, 10))
         window.blit(player, (self.x, self.y))
 
 class Bullet(object):
@@ -76,24 +106,42 @@ class Enemy(object):
         self.path = [self.x, self.end]
         self.steps = 0
         self.velocity = 2
+        self.side = 1
         self.walk_right = list(map(lambda i: pygame.image.load(path.join(enemy_walk_sprites_dir, f'r{i}.png')), range(1,9)))
         self.walk_left = list(map(lambda i : pygame.image.load(path.join(enemy_walk_sprites_dir, f'l{i}.png')), range(1, 9)))
+        self.hitbox = (self.x + 50, self.y + 40, 30, 60)
+        self.vision = (self.x + 50, self.y + 40, 100, 30)
+        self.life = 0
+        self.death = 0
 
     def draw(self, window):
+        if self.life < 5:
+            self.move()
+            if self.steps + 1 >= 24:
+                self.steps = 0
 
-        self.move()
-        if self.steps + 1 >= 24:
-            self.steps = 0
-
-        if self.velocity > 0:
-            enemy = self.walk_right[self.steps // 3]
-            self.steps += 1
+            if self.velocity > 0:
+                enemy = self.walk_right[self.steps // 3]
+                self.steps += 1
+            else:
+                enemy = self.walk_left[self.steps // 3]
+                self.steps += 1
+            self.hitbox = (self.x + 50, self.y + 40, 30, 60)
+            self.vision = (self.x + 50, self.y + 40, 200*self.side, 30)
+            #pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
+            #pygame.draw.rect(window, (255, 0, 0), self.vision, )
+            enemy.set_colorkey((255, 255, 255))
+            health_bar = health_bars[self.life]
+            health_bar = pygame.transform.scale(health_bar, (128, 128))
+            health_bar.set_colorkey((255, 255, 255))
+            window.blit(health_bar, (self.hitbox[0] - 5, self.hitbox[1] - 20))
+            window.blit(enemy, (self.x, self.y))
         else:
-            enemy = self.walk_left[self.steps // 3]
-            self.steps += 1
-
-        enemy.set_colorkey((255, 255, 255))
-        window.blit(enemy, (self.x, self.y))
+            if self.death + 1 < 20:
+                enemy = enemy_death[self.death]
+                enemy.set_colorkey((255, 255, 255))
+                window.blit(enemy, (self.x, self.y))
+                self.death += 1
 
     def move(self):
         if self.velocity > 0:
@@ -107,7 +155,13 @@ class Enemy(object):
                 self.x += self.velocity
             else:
                 self.velocity *= -1
+                self.side *= -1
                 self.steps = 0
+    def hit(self):
+        if self.life < 5:
+            self.life += 1
+        else:
+            pass
 
 class Particle(object):
     def __init__(self, x1, y1, side):
@@ -129,8 +183,9 @@ def reDraw():
     bg = pygame.image.load(path.join(bg_dir, 'bg.png'))
     bg = pygame.transform.scale(bg, (1000, 1000))
     window.blit(bg, (0, 0))
-    enemy.draw(window)
     player.draw(window)
+    for enemy in enemies:
+        enemy.draw(window)
     for bullet in bullets:
         bullet.draw(window)
     for particle in particles:
@@ -141,62 +196,92 @@ clock = pygame.time.Clock()
 bullets = list()
 particles = list()
 player = Player(100, 700)
-enemy = Enemy(400, 750, 800)
+enemies = [Enemy(400, 750, 800)]
+shoot_loop = 0
+start_game = False
 while running:
+
     clock.tick(30)
+    mouse = pygame.mouse.get_pos()
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-    for bullet in bullets:
-        if bullet.x < 1000 and bullet.x > 0:
-            bullet.x += bullet.velocity
-        else:
-            bullets.pop(bullets.index(bullet))
-    for particle in particles:
-        if ((particle.x2 - particle.x1)**2 + (particle.y2 - particle.y1)**2)**0.5 > particle.life:
-            particles.pop(particles.index(particle))
-        else:
-            particle.x2 += particle.velocityX * particle.sideX
-            particle.y2 += particle.velocityY * particle.sideY
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if 384 < mouse[0] < 616 and 550 < mouse[1] < 626:
+                start_game = True
+
+    if not start_game:
+
+        bg = pygame.image.load(path.join(bg_dir, 'bg.png'))
+        bg = pygame.transform.scale(bg, (1000, 1000))
+        window.blit(bg, (0, 0))
+        window.blit(btn, (384, 550))
+        window.blit(logo, (213, 280))
+        pygame.display.update()
 
 
-    keys = pygame.key.get_pressed()
-
-    if keys[pygame.K_f]:
-        if len(bullets) < 10:
-            bullets.append(Bullet(player.x + player.width//2 + 45*player.side, player.y + 126, player.side))
-            for i in range(random.randint(5,13)):
-                particles.append(Particle(player.x + player.width//2 + 45*player.side, player.y + 126, player.side))
-
-    if keys[pygame.K_d]:
-        player.x += player.velocity
-        player.right = True
-        player.left = False
-        player.side = 1
-    elif keys[pygame.K_a]:
-        player.x -= player.velocity
-        player.left = True
-        player.right = False
-        player.side = -1
     else:
-        player.right = False
-        player.left = False
-        player.steps = 0
-    if keys[pygame.K_SPACE]:
-        player.is_jump = True
-        player.right = False
-        player.left = False
-        player.steps = 0
-    if player.is_jump:
-        if player.jump_count >= -10:
-            num = 1
-            if player.jump_count < 0:
-                num = -1
-            player.y -= (player.jump_count ** 2) * 0.5 * num
-            player.jump_count -= 1
-        else:
-            player.is_jump = False
-            player.jump_count = 10
+        for bullet in bullets:
+            if bullet.x < 1000 and bullet.x > 0:
+                bullet.x += bullet.velocity
+            if bullet.y - bullet.rad < enemies[0].hitbox[1] + enemies[0].hitbox[3] and bullet.y + bullet.rad > enemies[0].hitbox[1]:
+                if bullet.x + bullet.rad > enemies[0].hitbox[0] and bullet.x - bullet.rad < enemies[0].hitbox[0] + enemies[0].hitbox[2]:
+                    enemies[0].hit()
 
-    reDraw()
+                    bullets.pop(bullets.index(bullet))
+            else:
+                bullets.pop(bullets.index(bullet))
+        for particle in particles:
+            if ((particle.x2 - particle.x1)**2 + (particle.y2 - particle.y1)**2)**0.5 > particle.life:
+                particles.pop(particles.index(particle))
+            else:
+                particle.x2 += particle.velocityX * particle.sideX
+                particle.y2 += particle.velocityY * particle.sideY
+
+
+        keys = pygame.key.get_pressed()
+
+        if shoot_loop > 0:
+            shoot_loop += 1
+        if shoot_loop > 3:
+            shoot_loop = 0
+
+        if keys[pygame.K_f] and shoot_loop == 0:
+            if len(bullets) < 10:
+                bullets.append(Bullet(player.x + player.width//2 + 45*player.side, player.y + 126, player.side))
+                for i in range(random.randint(5,13)):
+                    particles.append(Particle(player.x + player.width//2 + 45*player.side, player.y + 126, player.side))
+            shoot_loop = 1
+
+        if keys[pygame.K_d]:
+            player.x += player.velocity
+            player.right = True
+            player.left = False
+            player.side = 1
+        elif keys[pygame.K_a]:
+            player.x -= player.velocity
+            player.left = True
+            player.right = False
+            player.side = -1
+        else:
+            player.right = False
+            player.left = False
+            player.steps = 0
+        if keys[pygame.K_SPACE]:
+            player.is_jump = True
+            player.right = False
+            player.left = False
+            player.steps = 0
+        if player.is_jump:
+            if player.jump_count >= -10:
+                num = 1
+                if player.jump_count < 0:
+                    num = -1
+                player.y -= (player.jump_count ** 2) * 0.5 * num
+                player.jump_count -= 1
+            else:
+                player.is_jump = False
+                player.jump_count = 10
+
+        reDraw()
 pygame.quit()
