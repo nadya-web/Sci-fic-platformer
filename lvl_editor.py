@@ -1,5 +1,6 @@
 import pygame
 from os import path
+import csv
 
 pygame.init()
 
@@ -22,6 +23,8 @@ mountaines1.set_colorkey((255, 255, 255))
 mountaines2 = pygame.image.load(path.join(bg_dir, 'mountaines2.png'))
 mountaines2 = pygame.transform.scale(mountaines2, (2300, 1000))
 mountaines2.set_colorkey((255, 255, 255))
+save = pygame.image.load(path.join(pics_dir, 'save.png'))
+load = pygame.image.load(path.join(pics_dir, 'load.png'))
 
 window = pygame.display.set_mode((1000 + 300, 1000))
 clock = pygame.time.Clock()
@@ -30,6 +33,8 @@ running = True
 ROWS = 16
 MAX_COLS = 150
 TILE_SIZE = 64
+level = 0
+FONT = pygame.font.SysFont('Montserrat', 26)
 
 scroll_left = False
 scroll_right = False
@@ -41,6 +46,7 @@ button_selected = [975, 260]
 btn_num = 0
 blocks.append(enemy)
 blocks.append(fuel)
+
 
 world_data = list()
 
@@ -90,10 +96,17 @@ def draw_tiles():
                 block.set_colorkey((255, 255, 255))
                 window.blit(block, (x*TILE_SIZE + scroll, y*TILE_SIZE))
 
+def draw_text(font, text, color, x, y):
+    img = font.render(text, True, color)
+    window.blit(img, (x, y))
+
 for block in blocks:
     row = len(buttons) % 3
     col = len(buttons) // 3
     buttons.append(Button(975 + 128 * row, 260 + 128 * col, block))
+
+save = Button(1000, 900, save)
+load = Button(1200, 900, load)
 
 while running:
 
@@ -107,6 +120,10 @@ while running:
     draw_btns()
     draw_rect(button_selected[0], button_selected[1])
     draw_tiles()
+    save.draw()
+    load.draw()
+    draw_text(FONT, f'Level: {level}', (140, 60, 60), 1000, 950)
+    draw_text(FONT, 'Press UP and DOWN to change level', (140, 60, 60), 1000, 970)
 
     mouse = pygame.mouse.get_pos()
     x = (mouse[0] - scroll) // TILE_SIZE
@@ -127,6 +144,10 @@ while running:
                 scroll_right = True
             if event.key == pygame.K_a:
                 scroll_left = True
+            if event.key == pygame.K_w:
+                level += 1
+            if event.key == pygame.K_s and level > 0:
+                level -= 1
             if event.key == pygame.K_LSHIFT:
                 scroll_velocity = 2
         if event.type == pygame.KEYUP:
@@ -143,6 +164,20 @@ while running:
                     button_selected[0] = btn.x
                     button_selected[1] = btn.y
                     btn_num = count
+            if save.x < mouse[0] < save.x + 64 and \
+                save.y < mouse[1] < save.y + 64:
+                with open(f'level{level}_data.csv', 'w', newline='') as csvfile:
+                    writer = csv.writer(csvfile, delimiter = ',')
+                    for row in world_data:
+                        writer.writerow(row)
+            if load.x < mouse[0] < load.x + 64 and \
+                load.y < mouse[1] < load.y + 64:
+                scroll = 0
+                with open(f'level{level}_data.csv', newline='') as csvfile:
+                    reader = csv.reader(csvfile, delimiter = ',')
+                    for x, row in enumerate(reader):
+                        for y, tile in enumerate(row):
+                            world_data[x][y] = int(tile)
 
 
 
