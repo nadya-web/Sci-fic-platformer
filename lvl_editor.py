@@ -9,6 +9,7 @@ bg_dir = path.join(path.dirname("N:\python\Sci-fic-game\main.py"), "bg")
 
 
 enemy = pygame.image.load(path.join(pics_dir, 'r1.png'))
+player = pygame.image.load(path.join(pics_dir, 'pl.png'))
 fuel = pygame.image.load(path.join(pics_dir, 'fuel.png'))
 blocks = list(map(lambda i: pygame.image.load(path.join(pics_dir, f'block{i}.png')), range(1, 13)))
 ground = pygame.image.load(path.join(bg_dir, 'ground.png'))
@@ -46,7 +47,7 @@ button_selected = [975, 260]
 btn_num = 0
 blocks.append(enemy)
 blocks.append(fuel)
-
+blocks.append(player)
 
 world_data = list()
 
@@ -71,7 +72,6 @@ def draw_grid():
         pygame.draw.line(window, (255, 255, 255), (0, row * TILE_SIZE), (2300, row * TILE_SIZE))
 
 def draw():
-    clock.tick(30)
     window.fill(((255, 255, 255)))
     width = 2300
     for x in range(3):
@@ -93,7 +93,6 @@ def draw_tiles():
         for x, tile in enumerate(row):
             if tile > -1:
                 block = blocks[tile]
-                block.set_colorkey((255, 255, 255))
                 window.blit(block, (x*TILE_SIZE + scroll, y*TILE_SIZE))
 
 def draw_text(font, text, color, x, y):
@@ -110,6 +109,8 @@ load = Button(1200, 900, load)
 
 while running:
 
+    clock.tick(30)
+
     if scroll_left and scroll < 0:
         scroll += 15 * scroll_velocity
     if scroll_right:
@@ -118,8 +119,9 @@ while running:
     draw()
     draw_grid()
     draw_btns()
-    draw_rect(button_selected[0], button_selected[1])
     draw_tiles()
+    draw_btns()
+    draw_rect(button_selected[0], button_selected[1])
     save.draw()
     load.draw()
     draw_text(FONT, f'Level: {level}', (140, 60, 60), 1000, 950)
@@ -178,8 +180,6 @@ while running:
                     for x, row in enumerate(reader):
                         for y, tile in enumerate(row):
                             world_data[x][y] = int(tile)
-
-
 
     pygame.display.update()
 
