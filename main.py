@@ -24,14 +24,17 @@ mountaines1 = pygame.image.load(path.join(bg_dir, 'mountaines1.png'))
 mountaines1 = pygame.transform.scale(mountaines1, (2300, 1000))
 mountaines2 = pygame.image.load(path.join(bg_dir, 'mountaines2.png'))
 mountaines2 = pygame.transform.scale(mountaines2, (2300, 1000))
+
 pl_walk_right = list(map(lambda i: pygame.image.load(path.join(pl_walk_sprites_dir, f'r{i}.png')), range(1, 12)))
 pl_walk_left = list(map(lambda i: pygame.image.load(path.join(pl_walk_sprites_dir, f'l{i}.png')), range(1, 12)))
 pl_standing_right = list(map(lambda i: pygame.image.load(path.join(standing_sprites_dir, f'r{i}.png')), range(1, 12)))
 pl_standing_left = list(map(lambda i: pygame.image.load(path.join(standing_sprites_dir, f'l{i}.png')), range(1, 12)))
 pl_death = list(map(lambda i: pygame.image.load(path.join(pl_death_dir, f'{i}.png')), range(1, 27)))
+
 enemy_death = list(map(lambda i: pygame.image.load(path.join(enemy_death_dir, f'{i}.png')), range(2, 21)))
 health_bars = list(map(lambda i: pygame.image.load(path.join(pics_dir, f'{i}.png')), range(1,7)))
 blocks = list(map(lambda i: pygame.image.load(path.join(pics_dir, f'block{i}.png')), range(1,13)))
+
 avatar = pygame.image.load(path.join(pics_dir, 'avatar.png'))
 btn = pygame.image.load(path.join(pics_dir, 'start_btn.png'))
 logo = pygame.image.load(path.join(pics_dir, 'logo.png'))
@@ -39,16 +42,19 @@ enemy = pygame.image.load(path.join(pics_dir, 'r1.png'))
 fuel = pygame.image.load(path.join(pics_dir, 'fuel.png'))
 pl = pygame.image.load(path.join(pics_dir, 'pl.png'))
 
-
+win = pygame.image.load(path.join(pics_dir, 'win.png'))
 btn = pygame.transform.scale(btn, (232, 96))
 logo = pygame.transform.scale(logo, (595, 230))
+
+FONT = pygame.font.SysFont('аrial', 32)
 
 ROWS = 16
 MAX_COLS = 150
 TILE_SIZE = 64
 level = 2
 
-SCROLL_FRAME = 200
+GRAVITY = 0.75
+SCROLL_FRAME = 400
 scroll = 0
 bg_scroll = 0
 
@@ -59,7 +65,8 @@ TILES.append(pl)
 
 class World():
     def __init__(self):
-        self.list = list()
+        self.obstacle = list()
+        self.decoration = list()
 
     def process_data(self, data):
         global enemies
@@ -69,21 +76,29 @@ class World():
                 if tile > -1:
                     img = TILES[tile]
                     coords = [x * 64, y * 64]
-                    if tile >= 0 and tile < 12:
-                        self.list.append([img, coords])
+                    if tile == 1 or tile == 2 or tile == 6 or \
+                            tile == 7 or tile == 10 or tile == 11:
+                        self.decoration.append([img, coords])
+                    elif tile == 0 or tile == 3 or tile == 4 or tile == 5 or \
+                            tile == 8 or tile == 9:
+                        self.obstacle.append([img, coords])
+
                     elif tile == 12:
-                        enemy = Enemy(x * TILE_SIZE - 50, y * TILE_SIZE - 43, x * TILE_SIZE + 100)
-                        enemies.append(enemy)
+                        enemy1 = Enemy(x * TILE_SIZE - 50, y * TILE_SIZE - 43, x * TILE_SIZE + 100)
+                        enemies.append(enemy1)
                     elif tile == 13:
-                        fuel = Fuel(img, x * TILE_SIZE, y * TILE_SIZE)
-                        fuels.append(fuel)
+                        fuel1 = Fuel(fuel, x * TILE_SIZE, y * TILE_SIZE)
+                        fuels.append(fuel1)
                     elif tile == 14 and player == 0:
                         player = Player(x * TILE_SIZE - 192, y * TILE_SIZE - 114)
         return player
 
     def draw(self):
         global scroll
-        for tile in self.list:
+        for tile in self.obstacle:
+            tile[1][0] += scroll
+            window.blit(tile[0], tile[1])
+        for tile in self.decoration:
             tile[1][0] += scroll
             window.blit(tile[0], tile[1])
 
@@ -94,8 +109,10 @@ class Player(object):
         self.y = y
         self.width = 256
         self.hight = 256
-        self.velocity = 10
+        self.velocityY = 10
+        self.velocityX = 10
         self.is_jump = False
+        self.in_air = True
         self.jump_count = 10
         self.left = False
         self.right = False
@@ -106,6 +123,10 @@ class Player(object):
         self.life = 0
         self.death = 0
         self.death_loop = 0
+        self.rect = pygame.Rect(self.x + 105, self.y + 75, 40, 105)
+        self.collisionY = 1
+        self.collisionX = 1
+        self.score = 0
 
     def draw(self, window):
         global start_game
@@ -159,6 +180,7 @@ class Player(object):
         avatar.set_colorkey((255, 255, 255))
         window.blit(avatar, (10, 10))
         window.blit(health_bar, (60, 10))
+        window.blit(fuel, (55, 15))
 
     def hit(self):
         if self.life < 5:
@@ -210,8 +232,9 @@ class Enemy(object):
             else :
                 enemy = self.walk_left[self.steps // 3]
                 self.steps += 1
-            self.hitbox = (self.x + 50, self.y + 40, 30, 60)
+            self.hitbox = (self.x + 50 - bg_scroll, self.y + 40, 30, 60)
             self.vision = (self.x + 50, self.y + 40, 300 * self.side, 30)
+
             #pygame.draw.rect(window, (255, 0, 0), self.hitbox, 2)
             #pygame.draw.rect(window, (255, 0, 0), self.vision)
             enemy.set_colorkey((255, 255, 255))
@@ -219,7 +242,7 @@ class Enemy(object):
             health_bar = pygame.transform.scale(health_bar, (128, 128))
             health_bar.set_colorkey((255, 255, 255))
             window.blit(health_bar, (self.hitbox[0] - 5, self.hitbox[1] - 20))
-            window.blit(enemy, (self.x, self.y))
+            window.blit(enemy, (self.x - bg_scroll, self.y))
 
             self.hitbox = (self.x + 50, self.y + 40, 30, 60)
             if self.velocity > 0:
@@ -231,20 +254,18 @@ class Enemy(object):
                 self.shoot_loop += 1
             if self.shoot_loop > 7:
                 self.shoot_loop = 0
-
-            if self.vision[0] < player.hitbox[0] and player.hitbox[0] + player.hitbox[2] < self.vision[0] + self.vision[2] and\
-                self.vision[1] > player.hitbox[1] and self.vision[1] + self.vision[3] < player.hitbox[1] + player.hitbox[3]:
-                if len(self.bullets) < 10 and self.shoot_loop == 0 :
-                    self.bullets.append(Bullet(self.x + self.width // 2 + 25 * self.side, self.y + self.hight // 2 + 14, self.side))
+            if self.vision[0] - bg_scroll < player.hitbox[0] and player.hitbox[0] + player.hitbox[2] < self.vision[0] - bg_scroll + self.vision[2] and \
+                    self.vision[1] > player.hitbox[1] and self.vision[1] + self.vision[3] < player.hitbox[1] + player.hitbox[3]:
+                if len(self.bullets) < 10 and self.shoot_loop == 0:
+                    self.bullets.append(Bullet(self.x - bg_scroll + self.width // 2 + 25 * self.side, self.y + self.hight // 2 + 14, self.side))
                     for i in range(random.randint(5, 13)):
-                        self.particles.append(Particle(self.x + self.width // 2 + 25 * self.side, self.y + self.hight // 2 + 14, self.side))
+                        self.particles.append(Particle(self.x - bg_scroll + self.width // 2 + 25 * self.side, self.y + self.hight // 2 + 14, self.side))
                     self.shoot_loop = 1
         else:
             if self.death + 1 <= 19:
-                print('death')
                 enemy = enemy_death[self.death]
                 enemy.set_colorkey((255, 255, 255))
-                window.blit(enemy, (self.x, self.y))
+                window.blit(enemy, (self.x - bg_scroll, self.y))
                 self.death += 1
 
     def move(self):
@@ -279,6 +300,7 @@ class Particle(object):
         self.sideX = side
         self.sideY = random.choice([1,-1])
         self.life = random.randint(20, 30)
+
     def draw(self, window, color):
         pygame.draw.circle(window, color, (self.x2, self.y2), self.rad)
 
@@ -287,6 +309,7 @@ class Fuel(object):
         self.x = x
         self.y = y
         self.img = img
+
     def draw(self, img, x, y):
         window.blit(img, (x, y))
 
@@ -314,14 +337,54 @@ def reDraw():
     for particle in particles:
         particle.draw(window, ((226, 223, 223)))
     for fuel in fuels:
-        fuel.draw(fuel.img, fuel.x, fuel.y)
+        fuel.draw(fuel.img, fuel.x - bg_scroll, fuel.y)
     pygame.display.update()
 
+def draw_text(font, text, color, x, y):
+    img = font.render(text, True, color)
+    window.blit(img, (x, y))
+
+
 def restart_game():
-    global bullets, particles, enemies, shoot_loop
+    global bullets, particles, shoot_loop
     bullets = list()
     particles = list()
     shoot_loop = 0
+
+def collision():
+    player.in_air = True
+    counterY = 0
+    counterX = 0
+    for tile in world.obstacle:
+        if tile[1][0] - player.hitbox[2] < player.hitbox[0] < tile[1][0] + player.hitbox[2] and \
+                abs(player.hitbox[1] + player.hitbox[3] - tile[1][1]) < 20:
+                player.collisionY = 0
+                player.in_air = False
+                counterY += 1
+
+        if (abs(tile[1][0] - player.hitbox[2] - player.hitbox[0]) < 20 or \
+            abs(tile[1][0] + 64 + player.hitbox[2] - player.hitbox[0]) < 20):
+            if tile[1][1] <= player.hitbox[1] + player.hitbox[3] <= tile[1][1] + 60 or \
+                    tile[1][1] <= player.hitbox[1] <= tile[1][1] + 64:
+                player.collisionX = 0
+                counterX += 1
+
+    if counterX == 0:
+        player.collisionX = 1
+    if counterY == 0:
+        player.collisionY = 1
+        player.in_air = True
+    return counterY
+
+def in_air():
+    global start_game
+    if player.in_air and player.y <= 1100:
+        player.y += player.velocityY
+    if player.y >= 1100:
+        start_game = False
+        restart_game()
+
+
 bullets = list()
 fuels = list()
 particles = list()
@@ -355,14 +418,18 @@ while running:
             if 384 < mouse[0] < 616 and 550 < mouse[1] < 626:
                 start_game = True
 
-
     if not start_game:
-
-        draw_bg()
-        window.blit(btn, (384, 550))
-        window.blit(logo, (213, 280))
-        pygame.display.update()
-        restart_game()
+        if len(fuels) == 0:
+            window.fill(((255, 255, 255)))
+            draw_bg()
+            window.blit(win, (250, 250))
+            pygame.display.update()
+        else:
+            draw_bg()
+            window.blit(btn, (384, 550))
+            window.blit(logo, (213, 280))
+            pygame.display.update()
+            restart_game()
 
     else:
 
@@ -373,7 +440,7 @@ while running:
                 bullets.pop(bullets.index(bullet))
             for enemy in enemies:
                 if bullet.y - bullet.rad < enemy.hitbox[1] + enemy.hitbox[3] and bullet.y + bullet.rad > enemy.hitbox[1]:
-                    if bullet.x + bullet.rad > enemy.hitbox[0] and bullet.x - bullet.rad < enemy.hitbox[0] + enemy.hitbox[2]:
+                    if bullet.x + bullet.rad > enemy.hitbox[0] - bg_scroll and bullet.x - bullet.rad < enemy.hitbox[0] - bg_scroll + enemy.hitbox[2]:
                         enemy.hit()
                         bullets.pop(bullets.index(bullet))
         for particle in particles:
@@ -399,6 +466,15 @@ while running:
                         enemy.bullets.pop(enemy.bullets.index(bullet))
                 else:
                     enemy.bullets.pop(enemy.bullets.index(bullet))
+            for fuel1 in fuels:
+                if abs(fuel1.x - bg_scroll - player.hitbox[0] - player.hitbox[3] + 90) < 5 or \
+                        abs(player.hitbox[0] + player.hitbox[3] - fuel1.x - bg_scroll) < 10:
+                    if player.hitbox[1] <= fuel1.y <= player.hitbox[0] + player.hitbox[3]:
+                        if player.score < len(fuels):
+                            player.score += 1
+                            fuels.pop(fuels.index(fuel1))
+                        if len(fuels) == 0:
+                            start_game = False
 
         keys = pygame.key.get_pressed()
 
@@ -410,12 +486,15 @@ while running:
         if keys[pygame.K_f] and shoot_loop == 0:
             if len(bullets) < 10:
                 bullets.append(Bullet(player.x + player.width//2 + 45*player.side, player.y + 126, player.side))
-                for i in range(random.randint(5,13)):
+                for i in range(random.randint(5, 13)):
                     particles.append(Particle(player.x + player.width//2 + 45*player.side, player.y + 126, player.side))
             shoot_loop = 1
 
+        counter = collision()
+        in_air()
+
         if keys[pygame.K_d]:
-            player.x += player.velocity
+            player.x += player.velocityX * player.collisionX
             player.right = True
             player.left = False
             player.side = 1
@@ -423,7 +502,7 @@ while running:
             player.left = True
             player.right = False
             player.side = -1
-            player.x -= player.velocity
+            player.x -= player.velocityX
         else:
             player.right = False
             player.left = False
@@ -435,20 +514,26 @@ while running:
             player.left = False
             player.steps = 0
         if player.is_jump:
+            counter = collision()
             if player.jump_count >= -10:
                 num = 1
                 if player.jump_count < 0:
                     num = -1
-                player.y -= (player.jump_count ** 2) * 0.5 * num
+                x = (player.jump_count ** 2) * 0.5 * num
+                if player.collisionY == 0 and counter > 0 and player.jump_count < 0:
+                    x *= 0
+                player.y -= x
                 player.jump_count -= 1
             else:
                 player.is_jump = False
+                player.in_air = False
                 player.jump_count = 10
-        # if player.x > 1000 - SCROLL_FRAME or player.x < 100:
-        #     scroll = player.velocity * player.side * -1
-        #     bg_scroll -= scroll
-        #     player.x -= player.velocity * player.side
+        if player.x > 1000 - SCROLL_FRAME or player.x < 100:
+            scroll = player.velocityX * player.side * -1
+            bg_scroll -= scroll
+            player.x -= player.velocityX * player.side
 
         draw_bg()
+        draw_text(FONT, str(player.score), (0, 0, 0), 110, 37)
         reDraw()
 pygame.quit()
